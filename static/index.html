@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GridCon Bring & Buy Tracker</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+              900: '#14532d',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .glass {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(8px);
+    }
+    .dark .glass {
+      background: rgba(15, 23, 42, 0.95);
+    }
+  </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen transition-colors duration-200 flex flex-col">
+
+  <!-- Compact Navigation Header -->
+  <header class="sticky top-0 z-30 glass border-b border-slate-200 dark:border-slate-800 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center justify-between gap-3">
+      
+      <!-- Brand & Tab Selector -->
+      <div class="flex items-center space-x-3">
+        <div class="w-9 h-9 rounded-lg bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-sm text-lg">
+          <i class="fa-solid fa-dice"></i>
+        </div>
+        <div>
+          <h1 class="text-base font-bold leading-tight tracking-tight">GridCon Bring & Buy</h1>
+          <div class="flex items-center space-x-2 text-xs text-slate-500 dark:text-slate-400">
+            <select id="tab-select" class="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded px-1.5 py-0.5 text-xs font-semibold focus:outline-none">
+              <option value="1235113395">Raw Data 7</option>
+              <option value="1988649514">Available Items</option>
+              <option value="36294078">Alphabetical</option>
+              <option value="2040633502">Price Low-High</option>
+              <option value="1050769963">Price High-Low</option>
+              <option value="867825655">Read this first</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Header Center: Compact Stats Row (Icons Only: Available / Total / Filtered) -->
+      <div class="flex items-center space-x-2 bg-slate-100 dark:bg-slate-800/80 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 text-xs font-extrabold tracking-wide">
+        <!-- Available Count -->
+        <span class="flex items-center space-x-1 text-emerald-600 dark:text-emerald-400" title="Available Items">
+          <i class="fa-solid fa-circle-check text-sm"></i>
+          <span id="stat-available">0</span>
+        </span>
+
+        <span class="text-slate-300 dark:text-slate-600 font-normal">/</span>
+
+        <!-- Total Items Count -->
+        <span class="flex items-center space-x-1 text-slate-600 dark:text-slate-300" title="Total Items">
+          <i class="fa-solid fa-boxes-stacked text-sm text-blue-500"></i>
+          <span id="stat-total">0</span>
+        </span>
+
+        <span class="text-slate-300 dark:text-slate-600 font-normal">/</span>
+
+        <!-- Filtered Count -->
+        <span class="flex items-center space-x-1 text-indigo-600 dark:text-indigo-400" title="Filtered Items">
+          <i class="fa-solid fa-filter text-sm"></i>
+          <span id="stat-filtered">0</span>
+        </span>
+      </div>
+
+      <!-- Header Controls -->
+      <div class="flex items-center space-x-2 text-xs">
+        <!-- Refresh Button -->
+        <button id="btn-refresh" title="Reload Sheet Data" class="p-2 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition">
+          <i id="icon-refresh" class="fa-solid fa-rotate"></i>
+        </button>
+
+        <!-- Check Slack Button -->
+        <button id="btn-slack" title="Scan Sheet for New Slack Additions" class="hidden sm:inline-flex items-center space-x-1.5 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg shadow-sm transition">
+          <i id="icon-slack" class="fa-solid fa-paper-plane"></i>
+          <span>Slack</span>
+        </button>
+
+        <!-- Dark Mode Toggle -->
+        <button id="btn-dark-mode" class="p-2 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition">
+          <i id="icon-dark-mode" class="fa-solid fa-moon text-indigo-500"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 space-y-4">
+
+    <!-- Filter & Toolbar Panel -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-200 dark:border-slate-700/60 space-y-3">
+      <div class="flex flex-col md:flex-row gap-2.5 items-stretch md:items-center justify-between">
+        <!-- Search Bar -->
+        <div class="relative flex-1">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+            <i class="fa-solid fa-magnifying-glass"></i>
+          </div>
+          <input 
+            id="input-search" 
+            type="text" 
+            placeholder="Search game, seller, notes, contact..." 
+            class="w-full pl-9 pr-8 py-1.5 bg-slate-50 dark:bg-slate-900/60 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none text-xs transition"
+          >
+          <button id="btn-clear-search" class="hidden absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600">
+            <i class="fa-solid fa-circle-xmark"></i>
+          </button>
+        </div>
+
+        <!-- Toolbar Controls -->
+        <div class="flex flex-wrap items-center gap-2 text-xs">
+          <!-- Active Seller Filter Pill (if any) -->
+          <div id="seller-filter-pill" class="hidden items-center gap-1 px-2 py-1 bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 rounded-md font-bold text-xs border border-amber-300 dark:border-amber-800">
+            <span>Seller: <span id="seller-filter-name"></span></span>
+            <button id="btn-clear-seller-filter" class="ml-1 hover:text-rose-600"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+
+          <!-- Hide Sold Toggle -->
+          <button id="btn-toggle-sold" class="px-2.5 py-1.5 rounded-lg border transition flex items-center gap-1.5 font-medium bg-slate-50 dark:bg-slate-900/50 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100">
+            <i id="icon-toggle-sold" class="fa-solid fa-eye"></i>
+            <span id="text-toggle-sold">Show All</span>
+          </button>
+
+          <!-- Sort Select (Default: Recently Added) -->
+          <div class="flex items-center bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-0.5">
+            <i class="fa-solid fa-arrow-down-short-wide text-slate-400 mr-1.5"></i>
+            <select id="select-sort" class="bg-transparent text-slate-700 dark:text-slate-200 focus:outline-none text-xs py-1 font-medium">
+              <option value="recent_desc">Recently Added</option>
+              <option value="recent_asc">Oldest First</option>
+              <option value="price_asc">Price: Low to High</option>
+              <option value="price_desc">Price: High to Low</option>
+              <option value="name_asc">Game Name: A-Z</option>
+              <option value="seller_asc">Seller: A-Z</option>
+              <option value="default">Original Order</option>
+            </select>
+          </div>
+
+          <!-- Column Filter Toggle -->
+          <button id="btn-toggle-col-filters" class="px-2.5 py-1.5 rounded-lg border transition flex items-center gap-1.5 font-medium bg-slate-50 dark:bg-slate-900/50 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100">
+            <i class="fa-solid fa-sliders"></i>
+            <span>Filters</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Collapsible Column Filter Drawer -->
+      <div id="col-filter-drawer" class="hidden pt-2.5 border-t border-slate-200 dark:border-slate-700/80">
+        <p class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Column Filters</p>
+        <div id="col-filter-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <!-- Dynamic column dropdowns -->
+        </div>
+        <div class="flex justify-end mt-2">
+          <button id="btn-clear-col-filters" class="hidden text-xs text-rose-600 dark:text-rose-400 hover:underline font-medium">
+            <i class="fa-solid fa-xmark mr-1"></i> Clear Column Filters
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cards Display Area -->
+    <div id="display-container">
+      <!-- Cards rendered here dynamically -->
+    </div>
+
+  </main>
+
+  <!-- Details Modal -->
+  <div id="modal-container" class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-900/60 backdrop-blur-sm">
+    <div class="bg-white dark:bg-slate-800 rounded-xl max-w-md w-full p-5 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-3 relative">
+      <button id="btn-close-modal" class="absolute top-3 right-3 text-slate-400 hover:text-slate-600 dark:hover:text-white">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <div class="flex items-start justify-between pr-6">
+        <div>
+          <h3 id="modal-game-name" class="text-lg font-bold text-slate-900 dark:text-slate-100">Game Name</h3>
+          <p id="modal-meta" class="text-xs text-slate-500 mt-0.5">Row #1 • Timestamp</p>
+        </div>
+        <span id="modal-price" class="px-2.5 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-extrabold text-base rounded-full">
+          £0
+        </span>
+      </div>
+
+      <div class="space-y-2 pt-1 text-xs">
+        <div class="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-700/60">
+          <span class="text-slate-500 font-medium">Seller:</span>
+          <button id="modal-seller-btn" class="font-bold text-amber-600 dark:text-amber-400 hover:underline">N/A</button>
+        </div>
+
+        <div class="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-700/60">
+          <span class="text-slate-500 font-medium">Contact Details:</span>
+          <span id="modal-contact" class="font-bold text-emerald-600 dark:text-emerald-400 select-all">N/A</span>
+        </div>
+
+        <div class="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-700/60">
+          <span class="text-slate-500 font-medium">Condition:</span>
+          <span id="modal-condition" class="font-semibold text-slate-800 dark:text-slate-200">N/A</span>
+        </div>
+
+        <div class="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-700/60">
+          <span class="text-slate-500 font-medium">Sold Status:</span>
+          <span id="modal-status" class="font-bold">Available</span>
+        </div>
+
+        <div id="modal-notes-container" class="py-1">
+          <span class="text-slate-500 font-medium block mb-1">Notes:</span>
+          <p id="modal-notes" class="text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
+            -
+          </p>
+        </div>
+      </div>
+
+      <div class="pt-2 flex gap-2">
+        <button id="btn-copy-contact" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-copy"></i>
+          <span id="text-copy-contact">Copy Contact Info</span>
+        </button>
+        <button id="btn-close-modal-bottom" class="px-3 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold hover:bg-slate-200 transition">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="mt-auto py-4 border-t border-slate-200 dark:border-slate-800 text-center text-[11px] text-slate-500 dark:text-slate-400">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-1">
+      <p>GridCon Bring & Buy Tracker • Automatic 5-min Slack monitoring active</p>
+      <p id="footer-sync">Last Checked: Never</p>
+    </div>
+  </footer>
+
+  <!-- Vanilla JS Application Logic -->
+  <script>
+    (function () {
+      let state = {
+        columns: [],
+        rows: [],
+        availableTabs: [],
+        selectedGid: '1235113395',
+        tabName: 'Raw Data 7',
+        loading: false,
+        searchQuery: '',
+        hideSold: false,
+        sortBy: 'recent_desc', // Default sort: Recently Added
+        selectedSeller: '',
+        columnFilters: {},
+        darkMode: false,
+        selectedItem: null,
+        lastSync: {}
+      };
+
+      let isUpdatingTabOptions = false;
+
+      const getApiUrl = (endpoint) => {
+        if (window.location.protocol === 'file:') {
+          return `http://127.0.0.1:8000${endpoint}`;
+        }
+        return endpoint;
+      };
+
+      const getItemVal = (item, keys) => {
+        for (const k of keys) {
+          if (item[k] !== undefined && item[k] !== '') return item[k];
+        }
+        return '';
+      };
+
+      const getGameName = (item) => {
+        return getItemVal(item, ['What game are you selling?', 'Game']) || 'Unnamed Game';
+      };
+
+      const getSellerName = (item) => {
+        return getItemVal(item, ['Your name', 'Seller']) || 'Unknown Seller';
+      };
+
+      const parsePrice = (priceStr) => {
+        if (!priceStr) return '0';
+        const cleaned = String(priceStr).replace(/[^0-9.]/g, '');
+        const num = parseFloat(cleaned);
+        return isNaN(num) ? priceStr : num.toString();
+      };
+
+      const isSold = (item) => {
+        const val = String(getItemVal(item, ['Sold', 'Status'])).toLowerCase().trim();
+        return val === 'yes' || val === 'true' || val === 'sold';
+      };
+
+      const escapeHtml = (str) => {
+        if (!str) return '';
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      };
+
+      const loadData = async () => {
+        state.loading = true;
+        renderState();
+
+        const refreshIcon = document.getElementById('icon-refresh');
+        if (refreshIcon) refreshIcon.classList.add('fa-spin');
+
+        const targetGid = state.selectedGid || '1235113395';
+        const apiUrl = getApiUrl(`/api/data?gid=${targetGid}`);
+
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+          const resp = await fetch(apiUrl, { signal: controller.signal });
+          clearTimeout(timeoutId);
+
+          if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+          const data = await resp.json();
+
+          state.columns = data.columns || [];
+          state.rows = data.rows || [];
+          state.availableTabs = data.available_tabs || [];
+          state.tabName = data.tab_name || 'Raw Data 7';
+          state.lastSync = data.last_sync || {};
+
+          updateTabSelectorOptions();
+        } catch (err) {
+          console.error("Failed loading sheet data:", err);
+          renderError(`Unable to fetch sheet data from ${apiUrl}. (${err.message}). Ensure server is running on http://127.0.0.1:8000.`);
+        } finally {
+          state.loading = false;
+          if (refreshIcon) refreshIcon.classList.remove('fa-spin');
+          renderState();
+        }
+      };
+
+      const triggerSlackCheck = async () => {
+        const slackIcon = document.getElementById('icon-slack');
+        if (slackIcon) slackIcon.classList.add('fa-spin');
+
+        try {
+          const resp = await fetch(getApiUrl('/api/trigger-check'), { method: 'POST' });
+          const res = await resp.json();
+          alert(`Slack Check Completed!\nTotal Items: ${res.total_items}\nNew Additions Sent to Slack: ${res.new_items}`);
+          await loadData();
+        } catch (e) {
+          alert('Error triggering Slack scan: ' + e.message);
+        } finally {
+          if (slackIcon) slackIcon.classList.remove('fa-spin');
+        }
+      };
+
+      const updateTabSelectorOptions = () => {
+        const tabSelect = document.getElementById('tab-select');
+        if (!tabSelect || !state.availableTabs.length) return;
+
+        isUpdatingTabOptions = true;
+        tabSelect.innerHTML = state.availableTabs.map(t => 
+          `<option value="${t.gid}" ${String(t.gid) === String(state.selectedGid) ? 'selected' : ''}>${escapeHtml(t.name)}</option>`
+        ).join('');
+        tabSelect.value = state.selectedGid;
+        setTimeout(() => { isUpdatingTabOptions = false; }, 100);
+      };
+
+      const getFilteredRows = () => {
+        let list = [...state.rows];
+
+        // Hide sold filter
+        if (state.hideSold) {
+          list = list.filter(r => !isSold(r));
+        }
+
+        // Seller specific filter
+        if (state.selectedSeller) {
+          list = list.filter(r => getSellerName(r).toLowerCase() === state.selectedSeller.toLowerCase());
+        }
+
+        // Global search query
+        if (state.searchQuery.trim()) {
+          const q = state.searchQuery.toLowerCase().trim();
+          list = list.filter(r => {
+            return Object.values(r).some(val => String(val).toLowerCase().includes(q));
+          });
+        }
+
+        // Column filters
+        Object.keys(state.columnFilters).forEach(col => {
+          const val = state.columnFilters[col];
+          if (val) {
+            list = list.filter(r => String(r[col]) === val);
+          }
+        });
+
+        // Sorting
+        if (state.sortBy === 'recent_desc') {
+          list.sort((a, b) => {
+            const tA = new Date(getItemVal(a, ['Timestamp'])).getTime() || 0;
+            const tB = new Date(getItemVal(b, ['Timestamp'])).getTime() || 0;
+            return tB - tA || b._row_id - a._row_id;
+          });
+        } else if (state.sortBy === 'recent_asc') {
+          list.sort((a, b) => {
+            const tA = new Date(getItemVal(a, ['Timestamp'])).getTime() || 0;
+            const tB = new Date(getItemVal(b, ['Timestamp'])).getTime() || 0;
+            return tA - tB || a._row_id - b._row_id;
+          });
+        } else if (state.sortBy === 'price_asc') {
+          list.sort((a, b) => parseFloat(parsePrice(getItemVal(a, ['Price', 'Price (UKP)']))) - parseFloat(parsePrice(getItemVal(b, ['Price', 'Price (UKP)']))));
+        } else if (state.sortBy === 'price_desc') {
+          list.sort((a, b) => parseFloat(parsePrice(getItemVal(b, ['Price', 'Price (UKP)']))) - parseFloat(parsePrice(getItemVal(a, ['Price', 'Price (UKP)']))));
+        } else if (state.sortBy === 'name_asc') {
+          list.sort((a, b) => getGameName(a).localeCompare(getGameName(b)));
+        } else if (state.sortBy === 'seller_asc') {
+          list.sort((a, b) => getSellerName(a).localeCompare(getSellerName(b)));
+        }
+
+        return list;
+      };
+
+      const renderState = () => {
+        const headerTabElem = document.getElementById('header-tab-name');
+        if (headerTabElem) headerTabElem.textContent = state.tabName;
+
+        const total = state.rows.length;
+        const available = state.rows.filter(r => !isSold(r)).length;
+        const filtered = getFilteredRows();
+
+        // Render Header Stats safely with null checks
+        const statAvailElem = document.getElementById('stat-available');
+        if (statAvailElem) statAvailElem.textContent = available;
+
+        const statTotalElem = document.getElementById('stat-total');
+        if (statTotalElem) statTotalElem.textContent = total;
+
+        const statFiltElem = document.getElementById('stat-filtered');
+        if (statFiltElem) statFiltElem.textContent = filtered.length;
+
+        // Render Seller Filter Pill
+        const sellerPill = document.getElementById('seller-filter-pill');
+        const sellerNameElem = document.getElementById('seller-filter-name');
+        if (sellerPill && sellerNameElem) {
+          if (state.selectedSeller) {
+            sellerNameElem.textContent = state.selectedSeller;
+            sellerPill.classList.remove('hidden');
+            sellerPill.classList.add('flex');
+          } else {
+            sellerPill.classList.add('hidden');
+            sellerPill.classList.remove('flex');
+          }
+        }
+
+        // Footer sync timestamp
+        const footerSync = document.getElementById('footer-sync');
+        if (footerSync && state.lastSync && state.lastSync.synced_at) {
+          try {
+            const timeStr = new Date(state.lastSync.synced_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            footerSync.textContent = `Last Checked: ${timeStr}`;
+          } catch {
+            footerSync.textContent = `Last Checked: ${state.lastSync.synced_at}`;
+          }
+        }
+
+        renderColumnFilterDrawer();
+
+        const container = document.getElementById('display-container');
+        if (!container) return;
+
+        if (state.loading && state.rows.length === 0) {
+          container.innerHTML = `
+            <div class="py-12 text-center">
+              <div class="inline-block p-3 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 mb-2">
+                <svg class="w-6 h-6 mx-auto animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+              </div>
+              <p class="text-xs text-slate-600 dark:text-slate-400 font-medium">Loading sheet data...</p>
+            </div>
+          `;
+          return;
+        }
+
+        if (filtered.length === 0) {
+          container.innerHTML = `
+            <div class="py-10 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-center">
+              <div class="text-slate-400 dark:text-slate-500 text-3xl mb-2">🎲</div>
+              <h3 class="text-slate-700 dark:text-slate-300 font-bold text-sm">No matching games</h3>
+              <p class="text-slate-500 dark:text-slate-400 text-xs mt-1">Total items in sheet: ${state.rows.length}. Try clearing search or filters.</p>
+              <button id="btn-reset-filters" class="mt-3 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-200 transition">
+                Reset All Filters
+              </button>
+            </div>
+          `;
+          document.getElementById('btn-reset-filters')?.addEventListener('click', () => {
+            state.searchQuery = '';
+            document.getElementById('input-search').value = '';
+            state.hideSold = false;
+            state.selectedSeller = '';
+            updateHideSoldBtn();
+            state.columnFilters = {};
+            renderState();
+          });
+          return;
+        }
+
+        renderCompactCardsView(container, filtered);
+      };
+
+      const renderError = (msg) => {
+        const container = document.getElementById('display-container');
+        if (!container) return;
+        container.innerHTML = `
+          <div class="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-xl p-5 text-center">
+            <div class="text-rose-500 text-2xl mb-1">⚠️</div>
+            <h3 class="text-rose-800 dark:text-rose-300 font-bold text-sm">Failed to load data</h3>
+            <p class="text-rose-600 dark:text-rose-400 text-xs mt-1">${escapeHtml(msg)}</p>
+            <button id="btn-retry" class="mt-3 px-3 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-semibold hover:bg-rose-700 transition">
+              Retry
+            </button>
+          </div>
+        `;
+        document.getElementById('btn-retry')?.addEventListener('click', loadData);
+      };
+
+      // Very Compact Cards View
+      const renderCompactCardsView = (container, items) => {
+        const cardsHtml = items.map(item => {
+          const gameName = escapeHtml(getGameName(item));
+          const price = escapeHtml(parsePrice(getItemVal(item, ['Price', 'Price (UKP)'])));
+          const seller = escapeHtml(getSellerName(item));
+          const condition = escapeHtml(getItemVal(item, ['Condition:', 'Condition']));
+          const notes = escapeHtml(getItemVal(item, ['Notes']));
+          const timestamp = escapeHtml(getItemVal(item, ['Timestamp']));
+          const sold = isSold(item);
+
+          return `
+            <div class="bg-white dark:bg-slate-800 rounded-xl p-3 border shadow-sm hover:shadow transition flex flex-col justify-between relative ${sold ? 'border-slate-200 dark:border-slate-800/80 opacity-70 bg-slate-50/50 dark:bg-slate-900/40' : 'border-slate-200 dark:border-slate-700/70 hover:border-emerald-500'}">
+              <div>
+                <!-- Top Row: Game Name & Price -->
+                <div class="flex items-start justify-between gap-2 mb-1.5">
+                  <h3 class="font-bold text-sm text-slate-900 dark:text-slate-100 leading-tight">${gameName}</h3>
+                  <span class="shrink-0 px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-xs font-black rounded-md border border-emerald-200 dark:border-emerald-800">
+                    £${price}
+                  </span>
+                </div>
+
+                <!-- Seller (Clickable filter) & Badges -->
+                <div class="flex flex-wrap items-center gap-1.5 text-[11px] mb-2">
+                  <!-- Clickable Seller -->
+                  <button data-seller="${seller}" class="btn-filter-seller inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 dark:hover:bg-amber-900/80 text-amber-800 dark:text-amber-300 rounded font-semibold transition border border-amber-200/60 dark:border-amber-900/60" title="Click to filter by ${seller}">
+                    <i class="fa-solid fa-user text-[10px] text-amber-500"></i>
+                    <span>${seller}</span>
+                  </button>
+
+                  <!-- Condition -->
+                  ${condition ? `
+                    <span class="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 rounded text-[10px] font-medium">
+                      ${condition}
+                    </span>
+                  ` : ''}
+
+                  <!-- Sold Badge -->
+                  ${sold ? `
+                    <span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 rounded text-[10px] font-bold">
+                      SOLD
+                    </span>
+                  ` : ''}
+                </div>
+
+                <!-- Notes snippet -->
+                ${notes ? `
+                  <p class="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2 italic mb-2">
+                    "${notes}"
+                  </p>
+                ` : ''}
+              </div>
+
+              <!-- Footer: Timestamp & Details -->
+              <div class="pt-2 border-t border-slate-100 dark:border-slate-700/50 flex items-center justify-between text-[11px] text-slate-400">
+                <span class="truncate max-w-[55%]" title="${timestamp}">${timestamp}</span>
+                <button data-row-id="${item._row_id}" class="btn-card-details font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 hover:underline">
+                  Details →
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        container.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">${cardsHtml}</div>`;
+
+        // Attach Seller Click Handlers
+        container.querySelectorAll('.btn-filter-seller').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const sellerName = btn.getAttribute('data-seller');
+            if (sellerName && sellerName !== 'Unknown Seller') {
+              state.selectedSeller = sellerName;
+              renderState();
+            }
+          });
+        });
+
+        // Attach Details Click Handlers
+        container.querySelectorAll('.btn-card-details').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const rowId = parseInt(btn.getAttribute('data-row-id'));
+            const item = state.rows.find(r => r._row_id === rowId);
+            if (item) openModal(item);
+          });
+        });
+      };
+
+      const renderColumnFilterDrawer = () => {
+        const grid = document.getElementById('col-filter-grid');
+        if (!grid) return;
+
+        grid.innerHTML = state.columns.map(col => {
+          const vals = Array.from(new Set(state.rows.map(r => r[col]).filter(Boolean))).sort();
+          const selectedVal = state.columnFilters[col] || '';
+
+          const optionsHtml = ['<option value="">All ' + escapeHtml(col) + '</option>']
+            .concat(vals.map(v => `<option value="${escapeHtml(v)}" ${v === selectedVal ? 'selected' : ''}>${escapeHtml(v)}</option>`))
+            .join('');
+
+          return `
+            <div class="space-y-0.5">
+              <label class="text-[10px] font-medium text-slate-500 dark:text-slate-400 block truncate" title="${escapeHtml(col)}">
+                ${escapeHtml(col)}
+              </label>
+              <select data-col="${escapeHtml(col)}" class="col-filter-select w-full text-xs bg-slate-50 dark:bg-slate-900/80 border border-slate-300 dark:border-slate-700 rounded p-1.5 focus:ring-1 focus:ring-emerald-500 focus:outline-none font-medium">
+                ${optionsHtml}
+              </select>
+            </div>
+          `;
+        }).join('');
+
+        grid.querySelectorAll('.col-filter-select').forEach(sel => {
+          sel.addEventListener('change', () => {
+            const col = sel.getAttribute('data-col');
+            state.columnFilters[col] = sel.value;
+            renderState();
+          });
+        });
+
+        const clearBtn = document.getElementById('btn-clear-col-filters');
+        const hasFilters = Object.values(state.columnFilters).some(Boolean);
+        if (clearBtn) {
+          if (hasFilters) clearBtn.classList.remove('hidden');
+          else clearBtn.classList.add('hidden');
+        }
+      };
+
+      // Modal Handling
+      const openModal = (item) => {
+        state.selectedItem = item;
+        const sellerName = getSellerName(item);
+
+        document.getElementById('modal-game-name').textContent = getGameName(item);
+        document.getElementById('modal-meta').textContent = `Row #${item._row_id} • ${getItemVal(item, ['Timestamp'])}`;
+        document.getElementById('modal-price').textContent = `£${parsePrice(getItemVal(item, ['Price', 'Price (UKP)']))}`;
+        
+        const sellerBtn = document.getElementById('modal-seller-btn');
+        if (sellerBtn) {
+          sellerBtn.textContent = sellerName;
+          sellerBtn.onclick = () => {
+            closeModal();
+            state.selectedSeller = sellerName;
+            renderState();
+          };
+        }
+
+        document.getElementById('modal-contact').textContent = getItemVal(item, ['Your contact details (phone number / email address)', 'Contact']) || 'N/A';
+        document.getElementById('modal-condition').textContent = getItemVal(item, ['Condition:', 'Condition']) || 'N/A';
+
+        const statusElem = document.getElementById('modal-status');
+        if (statusElem) {
+          if (isSold(item)) {
+            statusElem.textContent = 'Sold';
+            statusElem.className = 'font-bold text-rose-600';
+          } else {
+            statusElem.textContent = 'Available';
+            statusElem.className = 'font-bold text-emerald-600';
+          }
+        }
+
+        const notes = getItemVal(item, ['Notes']);
+        const notesContainer = document.getElementById('modal-notes-container');
+        if (notesContainer) {
+          if (notes) {
+            notesContainer.classList.remove('hidden');
+            document.getElementById('modal-notes').textContent = notes;
+          } else {
+            notesContainer.classList.add('hidden');
+          }
+        }
+
+        const copyTextLabel = document.getElementById('text-copy-contact');
+        if (copyTextLabel) copyTextLabel.textContent = 'Copy Contact Info';
+
+        const modalContainer = document.getElementById('modal-container');
+        if (modalContainer) modalContainer.classList.remove('hidden');
+      };
+
+      const closeModal = () => {
+        state.selectedItem = null;
+        const modalContainer = document.getElementById('modal-container');
+        if (modalContainer) modalContainer.classList.add('hidden');
+      };
+
+      const updateHideSoldBtn = () => {
+        const btn = document.getElementById('btn-toggle-sold');
+        const icon = document.getElementById('icon-toggle-sold');
+        const text = document.getElementById('text-toggle-sold');
+
+        if (btn && icon && text) {
+          if (state.hideSold) {
+            btn.className = 'px-2.5 py-1.5 rounded-lg border transition flex items-center gap-1.5 font-medium bg-emerald-50 dark:bg-emerald-950/50 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300';
+            icon.className = 'fa-solid fa-eye-slash';
+            text.textContent = 'Hiding Sold';
+          } else {
+            btn.className = 'px-2.5 py-1.5 rounded-lg border transition flex items-center gap-1.5 font-medium bg-slate-50 dark:bg-slate-900/50 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100';
+            icon.className = 'fa-solid fa-eye';
+            text.textContent = 'Show All';
+          }
+        }
+      };
+
+      // Event Listeners Setup
+      const initEvents = () => {
+        document.getElementById('tab-select')?.addEventListener('change', (e) => {
+          if (isUpdatingTabOptions) return;
+          const newGid = e.target.value;
+          if (newGid && newGid !== state.selectedGid) {
+            state.selectedGid = newGid;
+            loadData();
+          }
+        });
+
+        document.getElementById('btn-refresh')?.addEventListener('click', loadData);
+        document.getElementById('btn-slack')?.addEventListener('click', triggerSlackCheck);
+
+        document.getElementById('btn-dark-mode')?.addEventListener('click', () => {
+          state.darkMode = !state.darkMode;
+          const icon = document.getElementById('icon-dark-mode');
+          if (state.darkMode) {
+            document.documentElement.classList.add('dark');
+            if (icon) icon.className = 'fa-solid fa-sun text-amber-400';
+          } else {
+            document.documentElement.classList.remove('dark');
+            if (icon) icon.className = 'fa-solid fa-moon text-indigo-500';
+          }
+        });
+
+        // Clear seller filter pill button
+        document.getElementById('btn-clear-seller-filter')?.addEventListener('click', () => {
+          state.selectedSeller = '';
+          renderState();
+        });
+
+        const searchInput = document.getElementById('input-search');
+        const clearSearchBtn = document.getElementById('btn-clear-search');
+
+        if (searchInput && clearSearchBtn) {
+          searchInput.addEventListener('input', (e) => {
+            state.searchQuery = e.target.value;
+            if (state.searchQuery) clearSearchBtn.classList.remove('hidden');
+            else clearSearchBtn.classList.add('hidden');
+            renderState();
+          });
+
+          clearSearchBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            state.searchQuery = '';
+            clearSearchBtn.classList.add('hidden');
+            renderState();
+          });
+        }
+
+        document.getElementById('btn-toggle-sold')?.addEventListener('click', () => {
+          state.hideSold = !state.hideSold;
+          updateHideSoldBtn();
+          renderState();
+        });
+
+        document.getElementById('select-sort')?.addEventListener('change', (e) => {
+          state.sortBy = e.target.value;
+          renderState();
+        });
+
+        document.getElementById('btn-toggle-col-filters')?.addEventListener('click', () => {
+          const drawer = document.getElementById('col-filter-drawer');
+          if (drawer) drawer.classList.toggle('hidden');
+        });
+
+        document.getElementById('btn-clear-col-filters')?.addEventListener('click', () => {
+          state.columnFilters = {};
+          renderState();
+        });
+
+        document.getElementById('btn-close-modal')?.addEventListener('click', closeModal);
+        document.getElementById('btn-close-modal-bottom')?.addEventListener('click', closeModal);
+        document.getElementById('modal-container')?.addEventListener('click', (e) => {
+          if (e.target.id === 'modal-container') closeModal();
+        });
+
+        document.getElementById('btn-copy-contact')?.addEventListener('click', () => {
+          if (!state.selectedItem) return;
+          const game = getGameName(state.selectedItem);
+          const contact = getItemVal(state.selectedItem, ['Your contact details (phone number / email address)', 'Contact']);
+          const text = `Game: ${game} | Contact: ${contact}`;
+          navigator.clipboard.writeText(text);
+          
+          const label = document.getElementById('text-copy-contact');
+          if (label) {
+            label.textContent = 'Copied to Clipboard!';
+            setTimeout(() => { label.textContent = 'Copy Contact Info'; }, 2500);
+          }
+        });
+      };
+
+      let initialized = false;
+      const initApp = () => {
+        if (initialized) return;
+        initialized = true;
+        initEvents();
+        loadData();
+      };
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initApp);
+      } else {
+        initApp();
+      }
+    })();
+  </script>
+</body>
+</html>

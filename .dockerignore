@@ -1,0 +1,30 @@
+# Version control
+.git/
+.gitignore
+
+# Environment files
+.env
+.env.local
+
+# Python cache & virtualenv
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# SQLite database directory (mounted as Docker volume at runtime)
+data/*.db
+data/*.sqlite3
+
+# Documentation & temporary scratch scripts
+README.md
+scratch/
+
+# IDE / OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

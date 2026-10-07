@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  gridconbb:
+    build: .
+    container_name: gridconbb_app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - gridconbb_data:/app/data
+
+volumes:
+  gridconbb_data:
